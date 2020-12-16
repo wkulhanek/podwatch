@@ -1,0 +1,45 @@
+---
+- name: Update Image / Restart Container
+  debug:
+    msg: "Checking {{ _image_name }} (sha: {{ _image_sha }})"
+
+- name: Pull latest image
+  containers.podman.podman_image:
+    name: "{{ _image_name }}"
+    pull: true
+    force: true
+    state: present
+  register: r_updated_image
+
+- name: Restart Container if image changed
+  when: r_updated_image is changed
+  block:
+    - name: Debug
+      debug:
+        msg: "Image updated... {{ r_updated_image.image[0].Id }}"
+
+    - name: Find running container for old image
+      containers.podman.podman_container_info:
+      register: r_containers
+
+    - name: Find container name for image
+      set_fact:
+        _container_name: "{{ (r_containers.containers | to_json | from_json | json_query( query_name ) ) | first}}"
+        _container_id: "{{ ( r_containers.containers | to_json | from_json | json_query( query_id ) ) | first }}"
+        _container_image_id: "{{ ( r_containers.containers | to_json | from_json | json_query( query_image_id ) ) | first }}"
+      vars:
+        query_name: "[? ImageName=='{{ _image_name }}' ].Name"
+        query_id: "[? ImageName=='{{ _image_name }}' ].Id"
+        query_image_id: "[? ImageName=='{{ _image_name }}' ].Image"
+
+    - name: Print container name
+      debug:
+        msg: "Found container {{ _container_name }} with ID {{ _container_id }} running image {{ _container_image_id }}"
+
+    - name: Restart container
+      containers.podman.podman_container:
+        name: "{{ _container_name }}"
+        image: "{{ r_updated_image.image[0].Id }}"
+        state: started
+        recreate: true
+        force_restart: true

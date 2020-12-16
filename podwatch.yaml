@@ -1,0 +1,24 @@
+---
+- name: Podwatch
+  connection: local
+  hosts: localhost
+  gather_facts: false
+  become: true
+  tasks:
+  - name: Get all container images
+    containers.podman.podman_image_info:
+    register: r_images
+
+  - name: Update Container Images and restart containers
+    when: r_images.images | length > 0
+    vars:
+      _image_name: "{{ item.RepoTags[0] }}"
+      _image_sha: "{{ item.Id }}"
+      _image_cleanup: true
+    include_tasks: update_image_restart_container.yaml
+    loop: "{{ r_images.images }}"
+    loop_control:
+      label: "{{ item.RepoTags[0] }}"
+
+  - name: Cleanup
+    command: podman system prune --force

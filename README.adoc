@@ -1,2 +1,4 @@
 # podwatch
 Watch containers running with Podman and update if a new version of the image tag is available
+
+ansible-galaxy collection install containers.podman
