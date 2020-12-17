@@ -1,4 +1,77 @@
-# podwatch
-Watch containers running with Podman and update if a new version of the image tag is available
+== PodWatch
 
-ansible-galaxy collection install containers.podman
+PodWatch is an Ansible Playbook that examines container images on a host and updates the images if a newer version is available with the same tag (e.g. *latest*).
+
+It was developed on the following infrastructure:
+
+* Intel NUC bare metal server
+* Fedora 33 Server
+* Ansible 2.10(.4)
+
+The general logic flow in the playbook is:
+
+* Retrieve all container images on the machine
+* In a loop do the following
+** Check if there is a newer version of the image available. If so pull that image.
+** If a newer image has been found check if there is a running container using the old image. If so force restart the container to pick up the new image
+* Use `podman system prune` to clean up old, now unused, images.
+
+=== Installation
+
+. In a directory of your choice clone this repo:
++
+[source,sh]
+----
+git clone https://github.com/wkulhanek/podwatch
+cd podwatch
+
+# Need to create a logs directory to use in the shell script later
+mkdir logs
+----
+
+. Determine if your podman containers are running as regular users (using the user id you just cloned the repository with) or as _root_. The playbook is written for the case where the playbook runs as a regular user but the containers are running as _root_. It only works for these two cases and does not yet support individual users for each container. If the containers are running as _root_ no change is necessary. If running as a regular user switch the line `become: true` to `become:false` in the main `podwatch.yml` playbook.
+
+. Create a Python3 virtual environment to run the playbook in.
+.. Make sure that Python3 and _virtualenv* are installed:
++
+[source,sh]
+----
+sudo dnf -y install python3 python3-virtualenv
+----
+
+.. Create a virtualenv for podwatch and install all prerequisites into the virtualenv.
+[source,sh]
+----
+mkdir $HOME/virtualenvs
+virtualenv -p $(which python3) $HOME/virtualenvs/podwatch
+source $HOME/virtualenvs/podwatch/bin/activate
+
+pip install -r ./requirements.txt
+----
+
+. Install the Ansible collection(s) necessary to run the playbook.
+[source,sh]
+----
+ansible-galaxy install -r ./requirements.yml
+----
+
+. Create a `crontab` file pointing to the `update_containers.sh` script in your *podwatch* directory.
++
+[source,sh]
+----
+0 3 * * * /home/kulhanek/podwatch/update_containers.sh
+----
+
+. And finally set the crontab to use this file:
++
+[source,sh]
+----
+crontab crontab
+----
+
+. Validate that your *crontab* is set properly:
++
+[source,sh]
+----
+crontab -l
+----

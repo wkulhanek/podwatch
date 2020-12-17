@@ -3,6 +3,7 @@
   connection: local
   hosts: localhost
   gather_facts: false
+  # Switch to false if podman containers are running as a regular user
   become: true
   tasks:
   - name: Get all container images
@@ -14,11 +15,10 @@
     vars:
       _image_name: "{{ item.RepoTags[0] }}"
       _image_sha: "{{ item.Id }}"
-      _image_cleanup: true
-    include_tasks: update_image_restart_container.yaml
+    include_tasks: update_image_restart_container.yml
     loop: "{{ r_images.images }}"
     loop_control:
       label: "{{ item.RepoTags[0] }}"
 
-  - name: Cleanup
+  - name: Podman cleanup
     command: podman system prune --force
