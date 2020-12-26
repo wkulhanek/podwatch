@@ -6,6 +6,9 @@
   # Switch to false if podman containers are running as a regular user
   become: true
   tasks:
+  - name: Initial Podman cleanup (remove old images)
+    command: podman system prune --force
+
   - name: Get all container images
     containers.podman.podman_image_info:
     register: r_images
